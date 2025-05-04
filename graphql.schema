@@ -1,0 +1,312 @@
+type Album {
+	id: ID!
+	url: String!
+	path: [ID!]!
+	title: String!
+	description: String!
+	dateAdded: String!
+	dateUpdated: String!
+	sortOrder: SortOrder!
+	sortBy: SortBy!
+	uploadUrl: String!
+	uploadUrlExpiry: String!
+	media(after: String, first: Int): MediaConnection!
+}
+
+"""
+Attributes that can be added/edited on an album
+"""
+input AlbumMutation {
+	title: String
+	description: String
+	sortOrder: SortOrder
+	sortBy: SortBy
+	uploadUrl: String
+	uploadUrlExpiry: String
+}
+
+
+union Collection = Album | Folder
+
+type CollectionConnection {
+	"""
+	Information to aid in pagination.
+	"""
+	pageInfo: PageInfo!
+	"""
+	A list of edges.
+	"""
+	edges: [CollectionEdge!]!
+	"""
+	A list of nodes.
+	"""
+	nodes: [Collection!]!
+}
+
+"""
+An edge in a connection.
+"""
+type CollectionEdge {
+	"""
+	The item at the end of the edge
+	"""
+	node: Collection!
+	"""
+	A cursor for use in pagination
+	"""
+	cursor: String!
+}
+
+enum CollectionType {
+	FOLDER
+	ALBUM
+}
+
+
+type Folder {
+	id: ID!
+	url: String!
+	path: [ID!]!
+	title: String!
+	description: String!
+	dateAdded: String!
+	dataUpdated: String!
+	sortOrder: SortOrder!
+	sortBy: SortBy!
+}
+
+"""
+Attributes that can be added/edited on an folder
+"""
+input FolderMutation {
+	title: String
+	description: String
+	sortOrder: SortOrder
+	sortBy: SortBy
+}
+
+type GeodeticLocation {
+	latitude: Float!
+	longitude: Float!
+	hae: Float!
+}
+
+
+
+"""
+A scalar that can represent any JSON value.
+"""
+scalar JSON
+
+type Media {
+	id: ID!
+	url: String!
+	title: String!
+	description: String!
+	sha256: String!
+	dateAdded: String!
+	dateUpdated: String!
+	dateTaken: String!
+	filename: String!
+	size: Int!
+	width: Int!
+	height: Int!
+	mimeType: String!
+	labels: [String!]!
+	people: [String!]!
+	location: GeodeticLocation!
+	thumbnailUrl: String!
+	facialThumbnailsUrls: [String!]!
+	exif: JSON!
+}
+
+type MediaConnection {
+	"""
+	Information to aid in pagination.
+	"""
+	pageInfo: PageInfo!
+	"""
+	A list of edges.
+	"""
+	edges: [MediaEdge!]!
+	"""
+	A list of nodes.
+	"""
+	nodes: [Media!]!
+}
+
+"""
+An edge in a connection.
+"""
+type MediaEdge {
+	"""
+	The item at the end of the edge
+	"""
+	node: Media!
+	"""
+	A cursor for use in pagination
+	"""
+	cursor: String!
+}
+
+"""
+Attributes that can be added/edited on media.
+"""
+input MediaMutation {
+	title: String
+	description: String
+	mimeType: String
+	"""
+	Ignored for add_media operation. Will not change effect s3 storage but will change Metadata storage
+	"""
+	filename: String
+	labels: [String!]
+	people: [String!]
+}
+
+type MutationRoot {
+	addFolder(attr: FolderMutation!, parentId: ID): ID!
+	updateFolder(id: ID!, attr: FolderMutation!): ID!
+	"""
+	Deletes a folder
+	"""
+	delFolder(id: ID!, recursively: Boolean): ID!
+	addAlbum(title: String!, attr: AlbumMutation!, parentId: ID): ID!
+	"""
+	Updates the metadata of an album.
+	"""
+	updateAlbum(id: ID!, attr: AlbumMutation!): ID!
+	"""
+	Deletes an album
+	"""
+	delAlbum(id: ID!): ID!
+	"""
+	Works for Albums and Folders
+	"""
+	changePath(id: ID!, newPath: [ID!]!): Boolean!
+	"""
+	Associates media metadata to an album and returns a presigned URL that is to be used to upload the media.
+	"""
+	addMedia(		sha256: String!,		filename: String!,		mimeType: String!,
+		"""
+		Specifies existing Album ID to add image to. If not provided will live in special 'unsorted' album
+		"""
+		parentId: ID,		attr: MediaMutation
+	): NewMediaResponse!
+	"""
+	Updates media metadata.  This does not update the media itself.
+	"""
+	updateMedia(
+		"""
+		ID of Media item to update
+		"""
+		id: ID!,
+		"""
+		The metadata to update
+		"""
+		update: MediaMutation!
+	): Boolean!
+	"""
+	Adds the media item with an album.  This allows media to be in multiple albums.
+	"""
+	addMediaToAlbum(
+		"""
+		ID of Media item to add
+		"""
+		id: ID!,
+		"""
+		The ID of the album to add the media item to
+		"""
+		parentId: ID!
+	): Boolean!
+	"""
+	Removes a media item from an album.  Once removed from all albums, the media item is deleted.
+	"""
+	delMedia(
+		"""
+		ID of Media item to remove
+		"""
+		id: ID!,
+		"""
+		The ID of the album to remove the media item from
+		"""
+		parentId: ID,
+		"""
+		If true, the media item is deleted from all albums and physically deleted
+		"""
+		doForceEverywhere: Boolean
+	): Boolean!
+}
+
+type NewMediaResponse {
+	url: String!
+	id: ID!
+}
+
+"""
+Information about pagination in a connection
+"""
+type PageInfo {
+	"""
+	When paginating backwards, are there more items?
+	"""
+	hasPreviousPage: Boolean!
+	"""
+	When paginating forwards, are there more items?
+	"""
+	hasNextPage: Boolean!
+	"""
+	When paginating backwards, the cursor to continue.
+	"""
+	startCursor: String
+	"""
+	When paginating forwards, the cursor to continue.
+	"""
+	endCursor: String
+}
+
+type QueryRoot {
+	collections(		after: String,		first: Int,
+		"""
+		Can be the full or partial path. Not provided means root folders. '*' means all folders
+		"""
+		inPath: [ID!],
+		"""
+		If set will filter by collection type
+		"""
+		byType: CollectionType
+	): CollectionConnection!
+	"""
+	Queries for a specific Album
+	"""
+	albumFromId(id: ID!): Album!
+	"""
+	Queries for a specific Folder
+	"""
+	folderFromId(id: ID!): Folder!
+	"""
+	Queries for a specific Folder
+	"""
+	mediaFromId(id: ID!): Media!
+	media(after: String, first: Int): MediaConnection!
+}
+
+enum SortBy {
+	DATE_ADDED
+	DATE_UPDATED
+	DATE_TAKEN
+	FILENAME
+}
+
+enum SortOrder {
+	ASCENDING
+	DESCENDING
+}
+
+
+directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+schema {
+	query: QueryRoot
+	mutation: MutationRoot
+}
